@@ -10,9 +10,16 @@ import (
 	"time"
 
 	"github.com/VaultedUI/daemon/client"
+	"github.com/VaultedUI/daemon/config"
 	"github.com/VaultedUI/daemon/system"
 	"github.com/mitchellh/colorstring"
 	"github.com/spf13/cobra"
+)
+
+var (
+	configPath  = config.ConfigPath
+	debug       = false
+	ignoreDebug = false
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -42,17 +49,32 @@ func Execute() {
 }
 
 func init() {
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.daemon.yaml)")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", config.ConfigPath, "config file path")
+	rootCmd.PersistentFlags().BoolVar(&debug, "debug", false, "sets the debug mode for vault, used for diagnostics")
+
+	rootCmd.Flags().BoolVar(&ignoreDebug, "ignore-debug", false, "ignore the warning when debug is turned on")
+
 	rootCmd.AddCommand(versionCmd)
 }
 
 func rootCmdRun(cmd *cobra.Command, _ []string) {
+	if debug == true {
+		slog.SetLogLoggerLevel(slog.LevelDebug)
+	}
+
 	printLogo()
 	slog.Info("Lauching daemon...")
+	if debug == true && !ignoreDebug == true {
+		slog.Warn("Debug mode is enabled! If this is intended, you may ignore this message.")
+	}
+	slog.Debug("Creating docker client.")
 	_, err := client.Docker()
 	if err != nil {
 		slog.Error(err.Error())
+		slog.Debug("Failed to create client, exiting now.")
+		os.Exit(1)
 	}
+	slog.Debug("Created docker client successfully.")
 }
 
 func printLogo() {
